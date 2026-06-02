@@ -1,4 +1,3 @@
-// Elementos da DOM
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 const hud = document.getElementById("hud");
@@ -7,63 +6,73 @@ const scoreText = document.getElementById("scoreText");
 const inventoryBox = document.getElementById("inventoryBox");
 const failReason = document.getElementById("failReason");
 
-// Configurações
 const gridSize = 16;
 const cols = canvas.width / gridSize;
 const rows = canvas.height / gridSize;
 
 const blockTypes = [
-    { color: "#ef4444", symbol: "A" }, // Vermelho
-    { color: "#3b82f6", symbol: "B" }, // Azul
-    { color: "#eab308", symbol: "C" }, // Amarelo
-    { color: "#a855f7", symbol: "D" }  // Roxo
+    { color: "#ef4444", symbol: "A" },
+    { color: "#3b82f6", symbol: "B" },
+    { color: "#eab308", symbol: "C" },
+    { color: "#a855f7", symbol: "D" }
 ];
 
-// Estado do Jogo
 let snake = [];
 let velocity = { x: 0, y: 0 };
 let blocksOnMap = [];
 let inventory = [];
 let interactionsCompleted = 0;
-const interactionsNeeded = 5; 
+const interactionsNeeded = 5;
 let gameLoop;
 let isPlaying = false;
 
-// Variáveis de Dificuldade e Recorde
-let baseSpeed = 130; // Velocidade inicial (ms)
+let baseSpeed = 130;
 let currentSpeed = baseSpeed;
-let bestScore = localStorage.getItem('snakeBotBestScore') || 0; // Puxa o recorde salvo no celular/PC
+let bestScore = localStorage.getItem('snakeBotBestScore') || 0;
 
-// Variáveis do Modo Infinito (Easter Egg)
 let isInfiniteMode = false;
 let tapCount = 0;
 
-// Estado Matemático
 let currentMode = "SIMPLES";
-const combinationSize = 3;
+let combinationSize = 2;
 
-// --- SISTEMA DE ÁUDIO (Sintetizador Web) ---
+function factorial(n) {
+    if (n === 0 || n === 1) return 1;
+    let result = 1;
+    for (let i = 2; i <= n; i++) result *= i;
+    return result;
+}
+
+function calcularPossibilidades() {
+    let n = blockTypes.length;
+    let p = combinationSize;
+
+    if (currentMode === "SIMPLES") {
+        return factorial(n) / (factorial(p) * factorial(n - p));
+    } else {
+        return factorial(n + p - 1) / (factorial(p) * factorial(n - 1));
+    }
+}
+
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
 function playSound(type) {
     if (audioCtx.state === 'suspended') audioCtx.resume();
-    
+
     const osc = audioCtx.createOscillator();
     const gainNode = audioCtx.createGain();
-    
+
     osc.connect(gainNode);
     gainNode.connect(audioCtx.destination);
-    
+
     if (type === 'eat') {
-        // Som curto e agudo de coleta
         osc.type = 'square';
         osc.frequency.setValueAtTime(400, audioCtx.currentTime);
         gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
         osc.start();
         osc.stop(audioCtx.currentTime + 0.1);
-    } 
+    }
     else if (type === 'success') {
-        // Som agudinho de pacote fechado com sucesso
         osc.type = 'sine';
         osc.frequency.setValueAtTime(600, audioCtx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.2);
@@ -72,7 +81,6 @@ function playSound(type) {
         osc.stop(audioCtx.currentTime + 0.2);
     }
     else if (type === 'error') {
-        // Som grave de erro/batida
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(150, audioCtx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.5);
@@ -82,58 +90,74 @@ function playSound(type) {
     }
 }
 
-// --- GERENCIAMENTO DE TELAS ---
 function showScreen(screenId) {
     document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
     if (screenId) {
         const screen = document.getElementById(screenId);
-        if(screen) screen.classList.remove('hidden');
+        if (screen) screen.classList.remove('hidden');
     }
 }
 
 function startGame() {
-    showScreen(''); // Esconde todas as telas
+    showScreen('');
     hud.classList.remove('hidden');
-    
-    snake = [{ x: Math.floor(cols/2), y: Math.floor(rows/2) }];
-    velocity = { x: 0, y: -1 }; // Começa indo pra cima
+
+    snake = [{ x: Math.floor(cols / 2), y: Math.floor(rows / 2) }];
+    velocity = { x: 0, y: -1 };
     inventory = [];
     interactionsCompleted = 0;
-    
+
     setupNewMission();
-    
+
     isPlaying = true;
     if (gameLoop) clearInterval(gameLoop);
-    gameLoop = setInterval(update, 120); // Velocidade do jogo
+    gameLoop = setInterval(update, 120);
 }
 
 function endGame(reason, isVictory = false) {
     isPlaying = false;
     clearInterval(gameLoop);
     hud.classList.add('hidden');
-    
-    // --- NOVO: Salva o recorde no navegador se for a maior pontuação ---
+
     if (interactionsCompleted > bestScore) {
         bestScore = interactionsCompleted;
         localStorage.setItem('snakeBotBestScore', bestScore);
     }
-    
+
     if (isVictory) {
-        playSound('success'); 
+        playSound('success');
         showScreen('victoryScreen');
     } else {
-        playSound('error'); 
-        failReason.innerText = reason;
+        playSound('error');
+
+        const container = document.getElementById('gameContainer');
+        if (container) {
+            container.style.transform = "translate(5px, 5px)";
+            setTimeout(() => container.style.transform = "translate(-5px, -5px)", 50);
+            setTimeout(() => container.style.transform = "translate(5px, -5px)", 100);
+            setTimeout(() => container.style.transform = "translate(0, 0)", 150);
+        }
+
+        let possibilidades = calcularPossibilidades();
+        let tipoCombo = currentMode === "SIMPLES" ? "Simples" : "com Repetição";
+
+        failReason.innerHTML = `
+            <strong>${reason}</strong><br><br>
+            <span style="color:#fbbf24; font-size: 13px;">
+            📝 <strong>Análise do Sistema:</strong> Estavas a tentar formar uma Combinação ${tipoCombo} 
+            de ${blockTypes.length} cores tomadas ${combinationSize} a ${combinationSize}.<br>
+            Sabias que existem <strong>${possibilidades} combinações possíveis</strong> para esta missão?
+            </span>
+        `;
+
         showScreen('gameOverScreen');
-        
     }
 }
 
-// --- LÓGICA MATEMÁTICA E MISSÕES ---
 function setupNewMission() {
     inventory = [];
     currentMode = Math.random() > 0.5 ? "SIMPLES" : "REPETICAO";
-    
+
     if (currentMode === "SIMPLES") {
         missionText.innerText = "Missão: Combinação Simples (Colete 3 Diferentes)";
         missionText.style.color = "#60a5fa";
@@ -141,14 +165,14 @@ function setupNewMission() {
         missionText.innerText = "Missão: Combinação c/ Repetição (Colete 3 Iguais ou Não)";
         missionText.style.color = "#f472b6";
     }
-    
+
     updateHUD();
     spawnBlocks();
 }
 
 function spawnBlocks() {
     blocksOnMap = [];
-    for(let i = 0; i < 5; i++) {
+    for (let i = 0; i < 5; i++) {
         let type = blockTypes[Math.floor(Math.random() * blockTypes.length)];
         blocksOnMap.push({
             x: Math.floor(Math.random() * cols),
@@ -159,10 +183,9 @@ function spawnBlocks() {
     }
 }
 
-function processCollectedBlock(colorCollected) { // Agora recebe a cor
-    // Verifica pela cor em vez da letra
+function processCollectedBlock(colorCollected) {
     if (currentMode === "SIMPLES" && inventory.includes(colorCollected)) {
-        endGame("Erro Matemático: Em uma Combinação Simples, as CORES não podem se repetir!");
+        endGame("Erro Matemático: Numa Combinação Simples, as CORES não podem repetir-se!");
         return;
     }
 
@@ -172,21 +195,27 @@ function processCollectedBlock(colorCollected) { // Agora recebe a cor
     if (inventory.length === combinationSize) {
         interactionsCompleted++;
 
-        currentSpeed = Math.max(60, baseSpeed - (interactionsCompleted * 5)); // Fica mais rápido, mas tem um limite (60ms)
+        if (interactionsCompleted >= 2 && interactionsCompleted < 4) {
+            combinationSize = 3;
+        } else if (interactionsCompleted >= 4) {
+            combinationSize = 4;
+        }
+
+        currentSpeed = Math.max(60, baseSpeed - (interactionsCompleted * 5));
         clearInterval(gameLoop);
         gameLoop = setInterval(update, currentSpeed);
-        
+
         if (!isInfiniteMode && interactionsCompleted >= interactionsNeeded) {
-            endGame("", true); 
+            endGame("", true);
         } else {
-            playSound('success'); 
+            playSound('success');
             canvas.style.borderColor = "#fbbf24";
             setTimeout(() => canvas.style.borderColor = "#10b981", 300);
-            setupNewMission(); 
+            setupNewMission();
         }
     } else {
-        playSound('eat'); 
-        spawnBlocks(); 
+        playSound('eat');
+        spawnBlocks();
     }
 }
 
@@ -196,23 +225,19 @@ function updateHUD() {
     } else {
         scoreText.innerText = `${interactionsCompleted}/${interactionsNeeded}`;
     }
-    
+
     let invDisplay = "";
     for (let i = 0; i < combinationSize; i++) {
         if (inventory[i]) {
-            // Desenha o bloco com a cor real que o jogador comeu
             invDisplay += `<span style="color: ${inventory[i]}; text-shadow: 1px 1px 2px #000; font-size: 16px;">[■]</span> `;
         } else {
-            // Espaço vazio
             invDisplay += `<span style="color: #ffffff;">[ ]</span> `;
         }
     }
-    
-    // IMPORTANTE: Mudamos de innerText para innerHTML para as cores funcionarem!
-    inventoryBox.innerHTML = invDisplay; 
+
+    inventoryBox.innerHTML = invDisplay;
 }
 
-// --- LOOP DO JOGO ---
 function update() {
     if (!isPlaying) return;
 
@@ -243,63 +268,65 @@ function update() {
     }
 
     if (!ateBlock) {
-        snake.pop(); 
+        snake.pop();
     }
 
     draw();
 }
 
 function draw() {
-    // Fundo escuro
     ctx.fillStyle = "#1e293b";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // --- NOVO: Desenha a Grade (Grid) Estilo Matriz ---
-    ctx.strokeStyle = "rgba(51, 65, 85, 0.5)"; // Cor da linha bem transparente
+    ctx.strokeStyle = "rgba(51, 65, 85, 0.5)";
     ctx.lineWidth = 1;
+    ctx.beginPath();
     for (let x = 0; x <= canvas.width; x += gridSize) {
-        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+        ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height);
     }
     for (let y = 0; y <= canvas.height; y += gridSize) {
-        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+        ctx.moveTo(0, y); ctx.lineTo(canvas.width, y);
     }
+    ctx.stroke();
 
-    // Blocos
     blocksOnMap.forEach(block => {
         ctx.fillStyle = block.color;
         ctx.fillRect(block.x * gridSize + 2, block.y * gridSize + 2, gridSize - 4, gridSize - 4);
     });
 
-    // Snake
     snake.forEach((part, index) => {
         ctx.fillStyle = index === 0 ? "#10b981" : "#059669";
         ctx.fillRect(part.x * gridSize + 1, part.y * gridSize + 1, gridSize - 2, gridSize - 2);
     });
 }
 
-// --- CONTROLES E BOTÕES ---
-
 const tituloPrincipal = document.querySelector('#startScreen h1');
-tituloPrincipal.addEventListener('click', () => {
-    if (isInfiniteMode) return; // Se já ativou, não faz nada
-    
-    tapCount++;
-    if (tapCount >= 5) {
-        ativarModoInfinito();
-        tapCount = 0; // Reseta o contador
-    }
-});
+if (tituloPrincipal) {
+    tituloPrincipal.addEventListener('click', () => {
+        if (isInfiniteMode) return;
+
+        tapCount++;
+        if (tapCount >= 5) {
+            ativarModoInfinito();
+            tapCount = 0;
+        }
+    });
+}
 
 function ativarModoInfinito() {
     isInfiniteMode = true;
-    playSound('success'); 
-    
+    playSound('success');
+
     const titulo = document.querySelector('#startScreen h2');
-    titulo.innerText = "Operação: INFINITA (Desbloqueada!)";
-    titulo.style.color = "#a855f7"; 
-    
+    if (titulo) {
+        titulo.innerText = "Operação: INFINITA (Desbloqueada!)";
+        titulo.style.color = "#a855f7";
+    }
+
     const texto = document.querySelector('#startScreen p');
-    texto.innerHTML = "<strong>Modo Infinito:</strong> O limite de 5 pacotes foi desativado. Sobreviva até preencher todo o sistema e continue resolvendo as combinações. Boa sorte!";
+    if (texto) {
+        texto.innerHTML = "<strong>Modo Infinito:</strong> O limite de 5 pacotes foi desativado. Sobreviva até preencher todo o sistema e continue resolvendo as combinações. Boa sorte!";
+    }
 }
 
 window.addEventListener('keydown', e => {
@@ -309,7 +336,6 @@ window.addEventListener('keydown', e => {
         case 'ArrowLeft': if (velocity.x === 0) velocity = { x: -1, y: 0 }; break;
         case 'ArrowRight': if (velocity.x === 0) velocity = { x: 1, y: 0 }; break;
     }
-    
 });
 
 let touchStartX = 0;
@@ -318,17 +344,17 @@ let touchStartY = 0;
 window.addEventListener('touchstart', e => {
     touchStartX = e.changedTouches[0].screenX;
     touchStartY = e.changedTouches[0].screenY;
-}, {passive: false});
+}, { passive: false });
 
 window.addEventListener('touchmove', e => {
-    if(isPlaying) e.preventDefault(); 
-}, {passive: false});
+    if (isPlaying) e.preventDefault();
+}, { passive: false });
 
 window.addEventListener('touchend', e => {
-    if(!isPlaying) return;
+    if (!isPlaying) return;
     let endX = e.changedTouches[0].screenX;
     let endY = e.changedTouches[0].screenY;
-    
+
     let diffX = endX - touchStartX;
     let diffY = endY - touchStartY;
 
@@ -343,7 +369,6 @@ window.addEventListener('touchend', e => {
     }
 });
 
-// Eventos dos Botões (Correção do erro de Reference)
 document.getElementById('btnProximo')?.addEventListener('click', () => {
     showScreen('tutorialScreen');
 });
