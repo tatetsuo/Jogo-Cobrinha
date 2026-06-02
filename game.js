@@ -197,12 +197,23 @@ function endGame(reason, isVictory = false) {
         let possibilidades = calcularPossibilidades();
         let tipoCombo = currentMode === "SIMPLES" ? "Simples" : "com Repetição";
         
+        let n = blockTypes.length;
+        let p = combinationSize;
+        let formulaText = "";
+        
+        if (currentMode === "SIMPLES") {
+            formulaText = `Fórmula: C(${n}, ${p}) = ${n}! / (${p}! * (${n}-${p})!) = ${possibilidades}`;
+        } else {
+            formulaText = `Fórmula: CR(${n}, ${p}) = (${n}+${p}-1)! / (${p}! * (${n}-1)!) = ${possibilidades}`;
+        }
+        
         failReason.innerHTML = `
             <strong>${reason}</strong><br><br>
             <span style="color:#fbbf24; font-size: 13px;">
-            📝 <strong>Análise do Sistema:</strong> Estavas a tentar formar uma Combinação ${tipoCombo} 
-            de ${blockTypes.length} cores tomadas ${combinationSize} a ${combinationSize}.<br>
-            Sabias que existem <strong>${possibilidades} combinações possíveis</strong> para esta missão?
+            📝 <strong>Análise do Sistema:</strong> Você estava tentando formar uma Combinação ${tipoCombo} 
+            de ${n} cores tomadas ${p} a ${p}.<br><br>
+            <span style="color:#a855f7; font-family: monospace;">${formulaText}</span><br><br>
+            Você sabia que existem <strong>${possibilidades} combinações possíveis</strong> para esta missão?
             </span>
         `;
         
@@ -215,10 +226,10 @@ function setupNewMission() {
     currentMode = Math.random() > 0.5 ? "SIMPLES" : "REPETICAO";
     
     if (currentMode === "SIMPLES") {
-        missionText.innerText = "Missão: Combinação Simples (Colete 3 Diferentes)";
+        missionText.innerText = `Missão: Combinação Simples (Colete ${combinationSize} Diferentes)`;
         missionText.style.color = "#60a5fa";
     } else {
-        missionText.innerText = "Missão: Combinação c/ Repetição (Colete 3 Iguais ou Não)";
+        missionText.innerText = `Missão: Combinação c/ Repetição (Colete ${combinationSize} Iguais ou Não)`;
         missionText.style.color = "#f472b6";
     }
     
