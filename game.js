@@ -22,7 +22,7 @@ let velocity = { x: 0, y: 0 };
 let blocksOnMap = [];
 let inventory = [];
 let interactionsCompleted = 0;
-const interactionsNeeded = 5;
+const interactionsNeeded = 5; 
 let gameLoop;
 let isPlaying = false;
 
@@ -46,7 +46,7 @@ function factorial(n) {
 function calcularPossibilidades() {
     let n = blockTypes.length;
     let p = combinationSize;
-
+    
     if (currentMode === "SIMPLES") {
         return factorial(n) / (factorial(p) * factorial(n - p));
     } else {
@@ -56,22 +56,59 @@ function calcularPossibilidades() {
 
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
+let bgmInterval = null;
+
+function startBGM() {
+    if (bgmInterval) return;
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    
+    let noteIndex = 0;
+    const notes = [110, 110, 220, 110, 146.83, 110, 164.81, 110];
+    
+    bgmInterval = setInterval(() => {
+        if (!isPlaying) return;
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(notes[noteIndex], audioCtx.currentTime);
+        
+        gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+        
+        osc.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.15);
+        
+        noteIndex = (noteIndex + 1) % notes.length;
+    }, 200);
+}
+
+function stopBGM() {
+    if (bgmInterval) {
+        clearInterval(bgmInterval);
+        bgmInterval = null;
+    }
+}
+
 function playSound(type) {
     if (audioCtx.state === 'suspended') audioCtx.resume();
-
+    
     const osc = audioCtx.createOscillator();
     const gainNode = audioCtx.createGain();
-
+    
     osc.connect(gainNode);
     gainNode.connect(audioCtx.destination);
-
+    
     if (type === 'eat') {
         osc.type = 'square';
         osc.frequency.setValueAtTime(400, audioCtx.currentTime);
         gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
         osc.start();
         osc.stop(audioCtx.currentTime + 0.1);
-    }
+    } 
     else if (type === 'success') {
         osc.type = 'sine';
         osc.frequency.setValueAtTime(600, audioCtx.currentTime);
@@ -90,46 +127,65 @@ function playSound(type) {
     }
 }
 
+let particles = [];
+
+function spawnParticles(x, y, color) {
+    for (let i = 0; i < 15; i++) {
+        particles.push({
+            x: x,
+            y: y,
+            vx: (Math.random() - 0.5) * 6,
+            vy: (Math.random() - 0.5) * 6,
+            life: 1,
+            color: color
+        });
+    }
+}
+
 function showScreen(screenId) {
     document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
     if (screenId) {
         const screen = document.getElementById(screenId);
-        if (screen) screen.classList.remove('hidden');
+        if(screen) screen.classList.remove('hidden');
     }
 }
 
 function startGame() {
     showScreen('');
     hud.classList.remove('hidden');
-
-    snake = [{ x: Math.floor(cols / 2), y: Math.floor(rows / 2) }];
+    
+    snake = [{ x: Math.floor(cols/2), y: Math.floor(rows/2) }];
     velocity = { x: 0, y: -1 };
     inventory = [];
     interactionsCompleted = 0;
-
+    particles = [];
+    
     setupNewMission();
-
+    
     isPlaying = true;
+    startBGM();
+    
     if (gameLoop) clearInterval(gameLoop);
     gameLoop = setInterval(update, 120);
 }
 
 function endGame(reason, isVictory = false) {
     isPlaying = false;
+    stopBGM();
     clearInterval(gameLoop);
     hud.classList.add('hidden');
-
+    
     if (interactionsCompleted > bestScore) {
         bestScore = interactionsCompleted;
         localStorage.setItem('snakeBotBestScore', bestScore);
     }
-
+    
     if (isVictory) {
-        playSound('success');
+        playSound('success'); 
         showScreen('victoryScreen');
     } else {
-        playSound('error');
-
+        playSound('error'); 
+        
         const container = document.getElementById('gameContainer');
         if (container) {
             container.style.transform = "translate(5px, 5px)";
@@ -140,7 +196,7 @@ function endGame(reason, isVictory = false) {
 
         let possibilidades = calcularPossibilidades();
         let tipoCombo = currentMode === "SIMPLES" ? "Simples" : "com Repetição";
-
+        
         failReason.innerHTML = `
             <strong>${reason}</strong><br><br>
             <span style="color:#fbbf24; font-size: 13px;">
@@ -149,7 +205,7 @@ function endGame(reason, isVictory = false) {
             Sabias que existem <strong>${possibilidades} combinações possíveis</strong> para esta missão?
             </span>
         `;
-
+        
         showScreen('gameOverScreen');
     }
 }
@@ -157,7 +213,7 @@ function endGame(reason, isVictory = false) {
 function setupNewMission() {
     inventory = [];
     currentMode = Math.random() > 0.5 ? "SIMPLES" : "REPETICAO";
-
+    
     if (currentMode === "SIMPLES") {
         missionText.innerText = "Missão: Combinação Simples (Colete 3 Diferentes)";
         missionText.style.color = "#60a5fa";
@@ -165,14 +221,14 @@ function setupNewMission() {
         missionText.innerText = "Missão: Combinação c/ Repetição (Colete 3 Iguais ou Não)";
         missionText.style.color = "#f472b6";
     }
-
+    
     updateHUD();
     spawnBlocks();
 }
 
 function spawnBlocks() {
     blocksOnMap = [];
-    for (let i = 0; i < 5; i++) {
+    for(let i = 0; i < 5; i++) {
         let type = blockTypes[Math.floor(Math.random() * blockTypes.length)];
         blocksOnMap.push({
             x: Math.floor(Math.random() * cols),
@@ -194,7 +250,7 @@ function processCollectedBlock(colorCollected) {
 
     if (inventory.length === combinationSize) {
         interactionsCompleted++;
-
+        
         if (interactionsCompleted >= 2 && interactionsCompleted < 4) {
             combinationSize = 3;
         } else if (interactionsCompleted >= 4) {
@@ -204,18 +260,18 @@ function processCollectedBlock(colorCollected) {
         currentSpeed = Math.max(60, baseSpeed - (interactionsCompleted * 5));
         clearInterval(gameLoop);
         gameLoop = setInterval(update, currentSpeed);
-
+        
         if (!isInfiniteMode && interactionsCompleted >= interactionsNeeded) {
-            endGame("", true);
+            endGame("", true); 
         } else {
-            playSound('success');
+            playSound('success'); 
             canvas.style.borderColor = "#fbbf24";
             setTimeout(() => canvas.style.borderColor = "#10b981", 300);
-            setupNewMission();
+            setupNewMission(); 
         }
     } else {
-        playSound('eat');
-        spawnBlocks();
+        playSound('eat'); 
+        spawnBlocks(); 
     }
 }
 
@@ -225,7 +281,7 @@ function updateHUD() {
     } else {
         scoreText.innerText = `${interactionsCompleted}/${interactionsNeeded}`;
     }
-
+    
     let invDisplay = "";
     for (let i = 0; i < combinationSize; i++) {
         if (inventory[i]) {
@@ -234,8 +290,8 @@ function updateHUD() {
             invDisplay += `<span style="color: #ffffff;">[ ]</span> `;
         }
     }
-
-    inventoryBox.innerHTML = invDisplay;
+    
+    inventoryBox.innerHTML = invDisplay; 
 }
 
 function update() {
@@ -244,12 +300,14 @@ function update() {
     const head = { x: snake[0].x + velocity.x, y: snake[0].y + velocity.y };
 
     if (head.x < 0 || head.x >= cols || head.y < 0 || head.y >= rows) {
+        spawnParticles(snake[0].x * gridSize + gridSize/2, snake[0].y * gridSize + gridSize/2, "#ef4444");
         endGame("Falha Crítica: Colisão estrutural (Parede).");
         return;
     }
 
     for (let part of snake) {
         if (head.x === part.x && head.y === part.y) {
+            spawnParticles(head.x * gridSize + gridSize/2, head.y * gridSize + gridSize/2, "#ef4444");
             endGame("Falha Crítica: Corrompimento de dados (Bateu no próprio corpo).");
             return;
         }
@@ -260,6 +318,7 @@ function update() {
     let ateBlock = false;
     for (let i = 0; i < blocksOnMap.length; i++) {
         if (head.x === blocksOnMap[i].x && head.y === blocksOnMap[i].y) {
+            spawnParticles(head.x * gridSize + gridSize/2, head.y * gridSize + gridSize/2, blocksOnMap[i].color);
             processCollectedBlock(blocksOnMap[i].color);
             blocksOnMap.splice(i, 1);
             ateBlock = true;
@@ -268,8 +327,15 @@ function update() {
     }
 
     if (!ateBlock) {
-        snake.pop();
+        snake.pop(); 
     }
+    
+    particles.forEach(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life -= 0.05;
+    });
+    particles = particles.filter(p => p.life > 0);
 
     draw();
 }
@@ -290,21 +356,34 @@ function draw() {
     ctx.stroke();
 
     blocksOnMap.forEach(block => {
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = block.color;
         ctx.fillStyle = block.color;
         ctx.fillRect(block.x * gridSize + 2, block.y * gridSize + 2, gridSize - 4, gridSize - 4);
     });
 
     snake.forEach((part, index) => {
+        ctx.shadowBlur = index === 0 ? 15 : 10;
+        ctx.shadowColor = index === 0 ? "#10b981" : "#059669";
         ctx.fillStyle = index === 0 ? "#10b981" : "#059669";
         ctx.fillRect(part.x * gridSize + 1, part.y * gridSize + 1, gridSize - 2, gridSize - 2);
     });
+    
+    ctx.shadowBlur = 0;
+
+    particles.forEach(p => {
+        ctx.globalAlpha = Math.max(0, p.life);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x, p.y, 4, 4);
+    });
+    ctx.globalAlpha = 1.0;
 }
 
 const tituloPrincipal = document.querySelector('#startScreen h1');
 if (tituloPrincipal) {
     tituloPrincipal.addEventListener('click', () => {
         if (isInfiniteMode) return;
-
+        
         tapCount++;
         if (tapCount >= 5) {
             ativarModoInfinito();
@@ -315,14 +394,14 @@ if (tituloPrincipal) {
 
 function ativarModoInfinito() {
     isInfiniteMode = true;
-    playSound('success');
-
+    playSound('success'); 
+    
     const titulo = document.querySelector('#startScreen h2');
     if (titulo) {
         titulo.innerText = "Operação: INFINITA (Desbloqueada!)";
-        titulo.style.color = "#a855f7";
+        titulo.style.color = "#a855f7"; 
     }
-
+    
     const texto = document.querySelector('#startScreen p');
     if (texto) {
         texto.innerHTML = "<strong>Modo Infinito:</strong> O limite de 5 pacotes foi desativado. Sobreviva até preencher todo o sistema e continue resolvendo as combinações. Boa sorte!";
@@ -344,17 +423,17 @@ let touchStartY = 0;
 window.addEventListener('touchstart', e => {
     touchStartX = e.changedTouches[0].screenX;
     touchStartY = e.changedTouches[0].screenY;
-}, { passive: false });
+}, {passive: false});
 
 window.addEventListener('touchmove', e => {
-    if (isPlaying) e.preventDefault();
-}, { passive: false });
+    if(isPlaying) e.preventDefault(); 
+}, {passive: false});
 
 window.addEventListener('touchend', e => {
-    if (!isPlaying) return;
+    if(!isPlaying) return;
     let endX = e.changedTouches[0].screenX;
     let endY = e.changedTouches[0].screenY;
-
+    
     let diffX = endX - touchStartX;
     let diffY = endY - touchStartY;
 
