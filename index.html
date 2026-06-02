@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Snake-Bot: Combinações</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --text-color: #e2e8f0;
+            --accent: #10b981;
+            --danger: #ef4444;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #gameContainer {
+            position: relative;
+            width: 320px;
+            height: 480px;
+            background-color: #1e293b;
+            border: 3px solid var(--accent);
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+        }
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(15, 23, 42, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
+            z-index: 10;
+        }
+        .hidden { display: none !important; }
+        h1, h2 { color: var(--accent); margin-bottom: 10px; }
+        p { font-size: 14px; line-height: 1.5; margin-bottom: 20px; }
+        button {
+            background-color: var(--accent);
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+        button:active { transform: scale(0.95); }
+        
+        /* UI do Jogo (HUD) */
+        #hud {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            background: rgba(0,0,0,0.7);
+            border-bottom: 2px solid var(--accent);
+            pointer-events: none;
+            z-index: 5;
+        }
+        .hud-text { font-size: 12px; margin: 2px 0; font-weight: bold; }
+        #inventoryBox { color: #fbbf24; font-size: 16px; letter-spacing: 2px;}
+    </style>
+</head>
+<body>
+
+    <div id="gameContainer">
+        <!-- HUD durante o jogo -->
+        <div id="hud" class="hidden">
+            <div class="hud-text" id="missionText">Missão: Iniciando...</div>
+            <div class="hud-text">Interações Concluídas: <span id="scoreText">0/5</span></div>
+            <div id="inventoryBox">[ ] [ ] [ ]</div>
+        </div>
+
+        <!-- Canvas do Jogo -->
+        <canvas id="gameCanvas" width="320" height="480"></canvas>
+
+        <!-- Tela Inicial (Enredo) -->
+        <div id="startScreen" class="screen">
+            <h1>SNAKE-BOT</h1>
+            <h2>Operação Combinação</h2>
+            <p><strong>Enredo:</strong> Você é um algoritmo coletor. O sistema central precisa que você agrupe blocos de dados para restaurar a rede.</p>
+            <button onclick="showScreen('tutorialScreen')">Próximo</button>
+        </div>
+
+        <!-- Tela de Tutorial (Instruções) -->
+        <div id="tutorialScreen" class="screen hidden">
+            <h2>INSTRUÇÕES</h2>
+            <p>Deslize o dedo na tela (Swipe) ou use as setas do teclado para mover o Snake-Bot.</p>
+            <p><strong>Combinação Simples:</strong> Colete 3 blocos de cores diferentes. Se repetir cor, o pacote é corrompido!</p>
+            <p><strong>Combinação c/ Repetição:</strong> Colete 3 blocos de qualquer cor para fechar o pacote.</p>
+            <p>Complete 5 pacotes para vencer!</p>
+            <button onclick="startGame()">Iniciar Sistema</button>
+        </div>
+
+        <!-- Tela de Fim de Jogo -->
+        <div id="gameOverScreen" class="screen hidden">
+            <h1 style="color: var(--danger);">SISTEMA CORROMPIDO</h1>
+            <p id="failReason">Você bateu ou quebrou a regra matemática!</p>
+            <button onclick="showScreen('startScreen')">Reiniciar</button>
+        </div>
+
+        <!-- Tela de Vitória -->
+        <div id="victoryScreen" class="screen hidden">
+            <h1>REDE RESTAURADA!</h1>
+            <p>Excelente trabalho! Você concluiu as 5 operações matemáticas com sucesso.</p>
+            <button onclick="showScreen('startScreen')">Jogar Novamente</button>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
